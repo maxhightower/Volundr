@@ -31,6 +31,12 @@ src/volundr/
     wildcards.py         # dynamic prompts: {a|b} variants + __wildcard__ refs
     styles.py            # StylePreset: named prompt templates with {prompt} placeholder
     loras.py             # extract_loras: parse inline <lora:name:weight> tags
+  pixelart/              # pixel-art core (GPU-independent)
+    spec.py              # PixelArtSpec (palette/grid/dither) + Lospec/.gpl palette import
+    pixelset.py          # PixelSet: the locked "house style" — the consistency engine
+    sheet.py             # sprite-sheet / atlas packing (grid + shelf)
+    tiles.py             # 4-bit Wang auto-tiling rules
+    frontier/            # rotation + animation request builders (scaffolding; see docs/)
   invoke/
     client.py            # graph-agnostic InvokeAI queue client (enqueue/poll/fetch image)
     graph.py             # SDXL graph builder (text2img + LoRA + ControlNet), schema-validated
@@ -56,6 +62,15 @@ community-parity authoring features below. 70 passing tests.
 `top_rated` — the cheapest preference signal), and **reproducible PNG metadata**
 (`metadata.embed_in_png` / `extract_from_png`). The remaining table-stakes items that need a GPU /
 custom nodes (upscale + face-detailer post chain, live-canvas) are roadmap, not built here.
+
+**Pixel art (`pixelart/`, GPU-independent core).** `PixelArtSpec` (palette/grid/dither + Lospec
+import), `PixelSet` — the locked "house style" the approve flow freezes and reuses across sprites
+(the consistency engine, and our structural edge over PixelLab's trained models), sprite-sheet/atlas
+packing, and 4-bit Wang auto-tiling. The quantize/dither/downscale runs as a ported node on the GPU
+box. The two hard PixelLab-class frontiers — **directional rotation** and **skeleton animation** —
+have GPU-independent request builders in `pixelart/frontier/` (identity IP-Adapter + per-view/frame
+control + locked set + sheet packing); the runtime/quality plan is in
+[`docs/PIXEL_ART_FRONTIERS.md`](docs/PIXEL_ART_FRONTIERS.md).
 
 **Concept Sliders (step 6) — two integration tiers, both feeding `SliderBank`:**
 - *Tier A (ship first):* a slider is a LoRA trained offline (rohitgandikota/sliders, ~minutes

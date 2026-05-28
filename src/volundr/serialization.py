@@ -47,6 +47,7 @@ def params_from_dict(d: dict) -> GenerationParams:
         loras=tuple(LoraSpec(**x) for x in d.get("loras", [])),
         controlnets=tuple(ControlNetSpec(**x) for x in d.get("controlnets", [])),
         regions=tuple(region_from_dict(x) for x in d.get("regions", [])),
+        ip_adapters=tuple(IPAdapterSpec(**x) for x in d.get("ip_adapters", [])),
         variation_seed=d.get("variation_seed", defaults.variation_seed),
         variation_strength=d.get("variation_strength", defaults.variation_strength),
     )

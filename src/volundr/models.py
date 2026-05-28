@@ -92,6 +92,9 @@ class GenerationParams:
     loras: tuple[LoraSpec, ...] = ()
     controlnets: tuple[ControlNetSpec, ...] = ()
     regions: tuple[RegionPrompt, ...] = ()
+    # Whole-image image prompts (vs. per-region ones on RegionPrompt). Used for
+    # character-identity conditioning in turnarounds / animation frames.
+    ip_adapters: tuple[IPAdapterSpec, ...] = ()
     variation_seed: int | None = None
     variation_strength: float = 0.0
 

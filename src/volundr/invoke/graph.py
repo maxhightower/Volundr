@@ -41,6 +41,11 @@ def build_sdxl_graph(params: GenerationParams, resolve: ModelResolver) -> dict:
             "sub-seed variation blending must be wired against the live noise "
             "node and validated (build step 4)"
         )
+    if params.ip_adapters:
+        raise NotImplementedError(
+            "IP-Adapter node wiring is deferred to live InvokeAI validation "
+            "(identity conditioning for turnarounds / animation)"
+        )
 
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
