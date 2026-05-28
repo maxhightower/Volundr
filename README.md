@@ -32,12 +32,25 @@ src/volundr/
     feedback.py          # FeedbackStore: record + JSON persistence of approve/deny/lean
     seeds.py             # variation_params: sub-seed variations near an approved image (step 4)
     prompt_lean.py       # PromptLean: token-weight lean / push-to-negative (step 5)
+    sliders.py           # Concept Sliders: labeled lean axes (step 6) — Tier A + Tier B
     steering.py          # SteeringState: accumulate all feedback into a bias on next params
+invokeai_extension/      # fork-side code (NOT importable package): SEGA denoise extension
 tests/                   # pure-logic + mocked-HTTP coverage (no GPU needed)
 ```
 
 **Built & tested here (GPU-independent):** the preference loop (feedback store + persistence,
-variation seeding, prompt-level lean, accumulated steering) and the InvokeAI REST client.
+variation seeding, prompt-level lean, Concept-Slider axes, accumulated steering) and the
+InvokeAI REST client. 47 passing tests.
+
+**Concept Sliders (step 6) — two integration tiers, both feeding `SliderBank`:**
+- *Tier A (ship first):* a slider is a LoRA trained offline (rohitgandikota/sliders, ~minutes
+  on 24GB) and loaded at a **signed, adjustable weight** — InvokeAI's LoRA loader already does
+  this, so no new diffusion code. `SliderBank.active_loras()` emits the signed-weight LoRAs.
+- *Tier B (no per-axis training):* SEGA-style guidance — add text-defined concept *directions*
+  to the noise prediction at the `post_combine_noise_preds` denoise hook. The pure combiner
+  (`apply_sega_guidance`) is unit-tested; the fork-side `ExtensionBase` wrapper lives in
+  `invokeai_extension/volundr_sega.py` with explicit TODOs to wire against the live denoise loop.
+"lean toward/away" feedback nudges a slider's value via `SliderBank.apply()`.
 
 **Schema-validated against InvokeAI source:** `graph.py`'s node type strings and field names
 were checked against the InvokeAI invocation source (the version a fresh fork tracks). The one
