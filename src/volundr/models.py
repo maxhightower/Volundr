@@ -104,6 +104,7 @@ class FeedbackKind(str, Enum):
     DENY = "deny"
     LEAN_TOWARD = "lean_toward"
     LEAN_AWAY = "lean_away"
+    RATE = "rate"  # star rating; the star count is carried in Feedback.strength
 
 
 @dataclass(frozen=True)

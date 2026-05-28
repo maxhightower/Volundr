@@ -45,6 +45,18 @@ def test_approved_dedupes_and_preserves_order():
     assert [g.seed for g in store.approved()] == [1]
 
 
+def test_ratings_keep_latest_and_top_rated():
+    store = FeedbackStore()
+    a = store.add_generation(make_result(1))
+    b = store.add_generation(make_result(2))
+    store.record(Feedback(a.id, FeedbackKind.RATE, strength=3.0))
+    store.record(Feedback(a.id, FeedbackKind.RATE, strength=5.0))  # re-rate -> latest wins
+    store.record(Feedback(b.id, FeedbackKind.RATE, strength=2.0))
+
+    assert store.ratings() == {a.id: 5.0, b.id: 2.0}
+    assert [g.seed for g in store.top_rated(min_stars=4.0)] == [1]
+
+
 def test_roundtrip_persistence(tmp_path):
     store = FeedbackStore()
     r = make_result(

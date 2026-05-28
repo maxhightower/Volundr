@@ -8,19 +8,10 @@ fine-tune in v2) train on.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from pathlib import Path
 
-from volundr.models import (
-    ControlNetSpec,
-    Feedback,
-    FeedbackKind,
-    GenerationParams,
-    GenerationResult,
-    IPAdapterSpec,
-    LoraSpec,
-    RegionPrompt,
-)
+from volundr.models import Feedback, FeedbackKind, GenerationResult
+from volundr.serialization import params_from_dict, params_to_dict
 
 
 class FeedbackStore:
@@ -62,6 +53,21 @@ class FeedbackStore:
     def denied(self) -> list[GenerationResult]:
         return [self._generations[i] for i in self._ids_with(FeedbackKind.DENY)]
 
+    def ratings(self) -> dict[str, float]:
+        """Latest star rating per generation (gallery ratings double as preference signal)."""
+        out: dict[str, float] = {}
+        for f in self._feedback:
+            if f.kind is FeedbackKind.RATE:
+                out[f.generation_id] = f.strength  # later overwrites earlier
+        return out
+
+    def top_rated(self, min_stars: float = 4.0) -> list[GenerationResult]:
+        return [
+            self._generations[gid]
+            for gid, stars in self.ratings().items()
+            if stars >= min_stars
+        ]
+
     @property
     def all_feedback(self) -> list[Feedback]:
         return list(self._feedback)
@@ -91,47 +97,18 @@ class FeedbackStore:
 
 
 # --- (de)serialization helpers -------------------------------------------
-def _params_from_dict(d: dict) -> GenerationParams:
-    return GenerationParams(
-        prompt=d["prompt"],
-        negative_prompt=d["negative_prompt"],
-        model=d["model"],
-        seed=d["seed"],
-        steps=d["steps"],
-        cfg_scale=d["cfg_scale"],
-        width=d["width"],
-        height=d["height"],
-        denoising_start=d.get("denoising_start", 0.0),
-        loras=tuple(LoraSpec(**x) for x in d["loras"]),
-        controlnets=tuple(ControlNetSpec(**x) for x in d["controlnets"]),
-        regions=tuple(_region_from_dict(x) for x in d["regions"]),
-        variation_seed=d["variation_seed"],
-        variation_strength=d["variation_strength"],
-    )
-
-
-def _region_from_dict(x: dict) -> RegionPrompt:
-    ip = x.get("ip_adapter")
-    return RegionPrompt(
-        mask=x["mask"],
-        positive=x.get("positive", ""),
-        negative=x.get("negative", ""),
-        ip_adapter=IPAdapterSpec(**ip) if ip else None,
-    )
-
-
 def _result_to_dict(r: GenerationResult) -> dict:
     return {
         "id": r.id,
         "created_at": r.created_at,
         "image_path": r.image_path,
-        "params": asdict(r.params),
+        "params": params_to_dict(r.params),
     }
 
 
 def _result_from_dict(d: dict) -> GenerationResult:
     return GenerationResult(
-        params=_params_from_dict(d["params"]),
+        params=params_from_dict(d["params"]),
         image_path=d["image_path"],
         id=d["id"],
         created_at=d["created_at"],

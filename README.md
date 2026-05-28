@@ -24,7 +24,13 @@ and runs on the user's hardware (see "Next step").
 ```
 src/volundr/
   models.py              # engine-agnostic types: GenerationParams, Feedback, IPAdapter, results
+  serialization.py       # shared GenerationParams <-> dict (used by feedback + metadata)
+  metadata.py            # reproducible workflow metadata embedded in saved PNGs (stdlib only)
   brush.py               # generative paintbrush (v2): capture a style patch -> paint onto a region
+  prompt/                # authoring conveniences (A1111/Fooocus parity)
+    wildcards.py         # dynamic prompts: {a|b} variants + __wildcard__ refs
+    styles.py            # StylePreset: named prompt templates with {prompt} placeholder
+    loras.py             # extract_loras: parse inline <lora:name:weight> tags
   invoke/
     client.py            # graph-agnostic InvokeAI queue client (enqueue/poll/fetch image)
     graph.py             # SDXL graph builder (text2img + LoRA + ControlNet), schema-validated
@@ -40,8 +46,16 @@ tests/                   # pure-logic + mocked-HTTP coverage (no GPU needed)
 ```
 
 **Built & tested here (GPU-independent):** the preference loop (feedback store + persistence,
-variation seeding, prompt-level lean, Concept-Slider axes, accumulated steering), the generative
-paintbrush conditioning builder, and the InvokeAI REST client. 54 passing tests.
+variation seeding, prompt-level lean, Concept-Slider axes, gallery ratings, accumulated steering),
+the generative paintbrush conditioning builder, the InvokeAI REST client, and the
+community-parity authoring features below. 70 passing tests.
+
+**Popular features (table-stakes parity, GPU-independent):** dynamic prompts / wildcards
+(`prompt.expand` / `expand_all`), style presets (`prompt.StylePreset`), inline LoRA-tag stacking
+(`prompt.extract_loras`), star **ratings** in the feedback store (`FeedbackStore.ratings` /
+`top_rated` — the cheapest preference signal), and **reproducible PNG metadata**
+(`metadata.embed_in_png` / `extract_from_png`). The remaining table-stakes items that need a GPU /
+custom nodes (upscale + face-detailer post chain, live-canvas) are roadmap, not built here.
 
 **Concept Sliders (step 6) — two integration tiers, both feeding `SliderBank`:**
 - *Tier A (ship first):* a slider is a LoRA trained offline (rohitgandikota/sliders, ~minutes
