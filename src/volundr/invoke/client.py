@@ -95,9 +95,21 @@ class InvokeAIClient:
             time.sleep(poll_interval)
 
     def list_models(self) -> list[dict]:
-        """Return the install's model configs (each carries key/hash/name/base/type)."""
-        data = self._json("GET", "/api/v1/models/")
+        """Return the install's model configs (each carries key/hash/name/base/type).
+
+        Models live under the v2 API in InvokeAI v4/v5 (the queue API stays v1).
+        """
+        data = self._json("GET", "/api/v2/models/")
         return data.get("models", data) if isinstance(data, dict) else data
+
+    def install_model(self, source: str, inplace: bool = False) -> dict:
+        """Queue a model install from an HF repo id or URL (InvokeAI v2 model API)."""
+        return self._json(
+            "POST", "/api/v2/models/install", params={"source": source, "inplace": inplace}
+        )
+
+    def model_install_jobs(self) -> list[dict]:
+        return self._json("GET", "/api/v2/models/install")
 
     def model_resolver(self) -> "Callable[[str], dict]":
         """Build a name -> ModelIdentifierField resolver from the live model list.

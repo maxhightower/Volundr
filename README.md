@@ -184,8 +184,22 @@ weighting, wildcards/dynamic prompts, style presets, Civitai import, an upscale 
 gallery boards with ratings (which double as the cheapest preference signal), and reproducible workflow
 metadata embedded in saved images.
 
-## Next step
+## Next step — GPU-box bring-up (one script)
 
-Build step 1 needs a GPU (local 4090/3090 or rented cloud) and cannot run in a GPU-less CI/cloud container.
-On a GPU box: install InvokeAI, download SDXL 1.0 + a test LoRA (a public Civitai/HF LoRA stands in until
-project LoRAs are supplied), and confirm a Python script can submit a graph over the API and retrieve an image.
+Build step 1 needs a GPU (local 4090/3090 or rented cloud); it can't run in a GPU-less container. Once
+you're on the GPU box, from a checkout of this repo run:
+
+```bash
+bash scripts/setup.sh
+```
+
+It checks prerequisites → clones/updates your InvokeAI fork → makes a venv → installs InvokeAI (editable,
+from the fork) + Völundr → launches InvokeAI → installs models (SDXL 1.0, a scribble ControlNet, the
+`nerijs/pixel-art-xl` LoRA, IP-Adapter SDXL) → runs an end-to-end validation generation via
+`scripts/bringup.py` (proves the client + model resolver + graph builder + queue round-trip all work). It
+is idempotent and configurable via env vars (see the CONFIG block at the top of the script).
+
+Note: the script's Völundr parts are tested; the InvokeAI-specific commands follow documented v4/v5
+behaviour but weren't runnable in the scaffolding environment — each brittle spot is a CONFIG variable or
+fails loudly with guidance. After a green run, the remaining work is wiring the `ip_adapters` / regional
+graph nodes in the fork, then running frontier milestones A0/B0.

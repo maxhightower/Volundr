@@ -106,6 +106,23 @@ def test_model_resolver_builds_identifier_from_install():
     assert resolve("abc123") == ident
 
 
+def test_list_models_uses_v2_api():
+    session = FakeSession([FakeResponse(json_data={"models": [{"name": "x"}]})])
+    client = InvokeAIClient(base_url="http://host:9090", session=session)
+    assert client.list_models() == [{"name": "x"}]
+    assert session.calls[0]["url"] == "http://host:9090/api/v2/models/"
+
+
+def test_install_model_posts_source():
+    session = FakeSession([FakeResponse(json_data={"status": "waiting"})])
+    client = InvokeAIClient(session=session)
+    client.install_model("nerijs/pixel-art-xl")
+    call = session.calls[0]
+    assert call["method"] == "POST"
+    assert call["url"].endswith("/api/v2/models/install")
+    assert call["params"]["source"] == "nerijs/pixel-art-xl"
+
+
 def test_model_resolver_raises_on_unknown():
     session = FakeSession([FakeResponse(json_data={"models": []})])
     resolve = InvokeAIClient(session=session).model_resolver()
