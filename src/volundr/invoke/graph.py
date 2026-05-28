@@ -97,7 +97,7 @@ def build_sdxl_graph(params: GenerationParams, resolve: ModelResolver) -> dict:
         "type": "denoise_latents",
         "steps": params.steps,
         "cfg_scale": params.cfg_scale,
-        "denoising_start": 0.0,
+        "denoising_start": params.denoising_start,
         "denoising_end": 1.0,
     }
     nodes["denoise"] = denoise

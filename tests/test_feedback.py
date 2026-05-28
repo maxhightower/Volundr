@@ -6,6 +6,7 @@ from volundr.models import (
     FeedbackKind,
     GenerationParams,
     GenerationResult,
+    IPAdapterSpec,
     LoraSpec,
     RegionPrompt,
 )
@@ -48,9 +49,16 @@ def test_roundtrip_persistence(tmp_path):
     store = FeedbackStore()
     r = make_result(
         7,
+        denoising_start=0.3,
         loras=(LoraSpec("dragon-style", 0.8),),
         controlnets=(ControlNetSpec("scribble", "/sketch.png", weight=0.6),),
-        regions=(RegionPrompt("/mask.png", positive="wing"),),
+        regions=(
+            RegionPrompt(
+                "/mask.png",
+                positive="wing",
+                ip_adapter=IPAdapterSpec(image="/patch.png", weight=0.5, method="style"),
+            ),
+        ),
     )
     store.add_generation(r)
     store.record(Feedback(r.id, FeedbackKind.LEAN_TOWARD, strength=1.5, tokens=("scales",)))
@@ -61,9 +69,13 @@ def test_roundtrip_persistence(tmp_path):
 
     g = loaded.generation(r.id)
     assert g.seed == 7
+    assert g.params.denoising_start == 0.3
     assert g.params.loras == (LoraSpec("dragon-style", 0.8),)
     assert g.params.controlnets[0].weight == 0.6
     assert g.params.regions[0].positive == "wing"
+    assert g.params.regions[0].ip_adapter == IPAdapterSpec(
+        image="/patch.png", weight=0.5, method="style"
+    )
     fb = loaded.feedback_for(r.id)[0]
     assert fb.kind is FeedbackKind.LEAN_TOWARD
     assert fb.tokens == ("scales",)

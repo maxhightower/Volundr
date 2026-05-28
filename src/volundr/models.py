@@ -35,12 +35,35 @@ class ControlNetSpec:
 
 
 @dataclass(frozen=True)
+class IPAdapterSpec:
+    """An image prompt (IP-Adapter) — carries a reference patch into a region.
+
+    This is the substrate for the generative paintbrush: a captured patch becomes
+    the `image`. `method` selects the injection style — "style" (InstantStyle-ish
+    style-only blocks, best for shading/texture/technique brushes), "full", or
+    "composition".
+    """
+
+    image: str  # path/handle to the reference patch
+    weight: float = 0.6
+    model: str = "ip_adapter_sdxl"
+    method: str = "style"  # "full" | "style" | "composition"
+    begin_step_percent: float = 0.0
+    end_step_percent: float = 1.0
+
+
+@dataclass(frozen=True)
 class RegionPrompt:
-    """A spatial label tied to a user-drawn mask (InvokeAI regional guidance)."""
+    """A spatial label tied to a user-drawn mask (InvokeAI regional guidance).
+
+    A region may carry an `ip_adapter` image reference in addition to text — this
+    is how a paintbrush stroke applies a captured style patch to its mask.
+    """
 
     mask: str  # path/handle to the mask image
     positive: str = ""
     negative: str = ""
+    ip_adapter: "IPAdapterSpec | None" = None
 
 
 @dataclass(frozen=True)
@@ -62,6 +85,10 @@ class GenerationParams:
     cfg_scale: float = 7.0
     width: int = 1024
     height: int = 1024
+    # Fraction of the schedule to skip before denoising (inpaint/img2img). 0.0 =
+    # generate from pure noise; >0 keeps more of the existing latent (a brush
+    # stroke with denoise_strength s sets this to 1 - s).
+    denoising_start: float = 0.0
     loras: tuple[LoraSpec, ...] = ()
     controlnets: tuple[ControlNetSpec, ...] = ()
     regions: tuple[RegionPrompt, ...] = ()

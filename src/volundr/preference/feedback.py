@@ -17,6 +17,7 @@ from volundr.models import (
     FeedbackKind,
     GenerationParams,
     GenerationResult,
+    IPAdapterSpec,
     LoraSpec,
     RegionPrompt,
 )
@@ -100,11 +101,22 @@ def _params_from_dict(d: dict) -> GenerationParams:
         cfg_scale=d["cfg_scale"],
         width=d["width"],
         height=d["height"],
+        denoising_start=d.get("denoising_start", 0.0),
         loras=tuple(LoraSpec(**x) for x in d["loras"]),
         controlnets=tuple(ControlNetSpec(**x) for x in d["controlnets"]),
-        regions=tuple(RegionPrompt(**x) for x in d["regions"]),
+        regions=tuple(_region_from_dict(x) for x in d["regions"]),
         variation_seed=d["variation_seed"],
         variation_strength=d["variation_strength"],
+    )
+
+
+def _region_from_dict(x: dict) -> RegionPrompt:
+    ip = x.get("ip_adapter")
+    return RegionPrompt(
+        mask=x["mask"],
+        positive=x.get("positive", ""),
+        negative=x.get("negative", ""),
+        ip_adapter=IPAdapterSpec(**ip) if ip else None,
     )
 
 

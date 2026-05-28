@@ -23,7 +23,8 @@ and runs on the user's hardware (see "Next step").
 
 ```
 src/volundr/
-  models.py              # engine-agnostic types: GenerationParams, Feedback, results
+  models.py              # engine-agnostic types: GenerationParams, Feedback, IPAdapter, results
+  brush.py               # generative paintbrush (v2): capture a style patch -> paint onto a region
   invoke/
     client.py            # graph-agnostic InvokeAI queue client (enqueue/poll/fetch image)
     graph.py             # SDXL graph builder (text2img + LoRA + ControlNet), schema-validated
@@ -39,8 +40,8 @@ tests/                   # pure-logic + mocked-HTTP coverage (no GPU needed)
 ```
 
 **Built & tested here (GPU-independent):** the preference loop (feedback store + persistence,
-variation seeding, prompt-level lean, Concept-Slider axes, accumulated steering) and the
-InvokeAI REST client. 47 passing tests.
+variation seeding, prompt-level lean, Concept-Slider axes, accumulated steering), the generative
+paintbrush conditioning builder, and the InvokeAI REST client. 54 passing tests.
 
 **Concept Sliders (step 6) — two integration tiers, both feeding `SliderBank`:**
 - *Tier A (ship first):* a slider is a LoRA trained offline (rohitgandikota/sliders, ~minutes
@@ -134,6 +135,25 @@ InvokeAI Apache-2.0 · ComfyUI GPL-3 (unused now) · SDXL 1.0 OpenRAIL++ (commer
 ## Non-goals for v1
 No multi-user/collab · no video/3D/animation · no in-app model-training UI (LoRAs trained externally via
 kohya_ss / ai-toolkit, loaded from disk) · no cloud SaaS · no mobile · dragons are not a special case.
+
+## Roadmap beyond v1
+
+**Generative paintbrush (v2, scaffolded in `brush.py`).** Capture a reference patch + a text string as a
+reusable "brush"; paint it onto a mask to restyle that region. Built as a regional IP-Adapter ("style"
+method) anchored by a target-derived structure ControlNet (lineart/scribble/depth) so existing forms are
+re-rendered in the captured technique rather than replaced. Deliberately *not* Paint-by-Example/AnyDoor
+(those paste objects). Caveat: fine high-frequency techniques (crosshatch/pencil) transfer unreliably —
+CLIP-image style is low-frequency — so lean on the structure ControlNet + text and expect "hatch-like".
+Builds on the step-3 regional-guidance work; doesn't block v1.
+
+**What's genuinely novel vs. table-stakes (from an ecosystem survey).** No mainstream local UI combines
+approve/deny/lean into a *live per-user steering loop* — analogues exist only as offline DPO research and
+as one-shot "vary toward this image" (Fooocus) or aesthetic-scorer nodes. That interactive loop is the
+defensible differentiator. Features users will nonetheless expect, worth scheduling once the loop works:
+layered/infinite canvas with inpaint/outpaint, regional prompting, LoRA stacking, A1111/compel prompt
+weighting, wildcards/dynamic prompts, style presets, Civitai import, an upscale + face-detailer post chain,
+gallery boards with ratings (which double as the cheapest preference signal), and reproducible workflow
+metadata embedded in saved images.
 
 ## Next step
 

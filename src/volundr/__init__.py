@@ -6,6 +6,7 @@ from volundr.models import (
     FeedbackKind,
     GenerationParams,
     GenerationResult,
+    IPAdapterSpec,
     LoraSpec,
     RegionPrompt,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "FeedbackKind",
     "GenerationParams",
     "GenerationResult",
+    "IPAdapterSpec",
     "LoraSpec",
     "RegionPrompt",
 ]
