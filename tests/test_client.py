@@ -79,6 +79,40 @@ def test_wait_for_batch_times_out():
         client.wait_for_batch("b-1", poll_interval=0, timeout=0)
 
 
+def test_model_resolver_builds_identifier_from_install():
+    models = [
+        {
+            "key": "abc123",
+            "hash": "blake3:xyz",
+            "name": "SDXL Base",
+            "base": "sdxl",
+            "type": "main",
+            "description": "ignored extra field",
+        }
+    ]
+    session = FakeSession([FakeResponse(json_data={"models": models})])
+    client = InvokeAIClient(session=session)
+    resolve = client.model_resolver()
+
+    ident = resolve("SDXL Base")
+    assert ident == {
+        "key": "abc123",
+        "hash": "blake3:xyz",
+        "name": "SDXL Base",
+        "base": "sdxl",
+        "type": "main",
+    }
+    # resolvable by key too
+    assert resolve("abc123") == ident
+
+
+def test_model_resolver_raises_on_unknown():
+    session = FakeSession([FakeResponse(json_data={"models": []})])
+    resolve = InvokeAIClient(session=session).model_resolver()
+    with pytest.raises(InvokeAIError):
+        resolve("missing-model")
+
+
 def test_image_url():
     client = InvokeAIClient(base_url="http://host:9090")
     assert client.image_url("img.png") == "http://host:9090/api/v1/images/i/img.png/full"

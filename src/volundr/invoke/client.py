@@ -16,7 +16,7 @@ shifted across major versions — confirm against the target instance's
 from __future__ import annotations
 
 import time
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 import requests
 
@@ -93,6 +93,34 @@ class InvokeAIClient:
             if time.monotonic() >= deadline:
                 raise InvokeAIError(f"batch {batch_id} timed out: {status}")
             time.sleep(poll_interval)
+
+    def list_models(self) -> list[dict]:
+        """Return the install's model configs (each carries key/hash/name/base/type)."""
+        data = self._json("GET", "/api/v1/models/")
+        return data.get("models", data) if isinstance(data, dict) else data
+
+    def model_resolver(self) -> "Callable[[str], dict]":
+        """Build a name -> ModelIdentifierField resolver from the live model list.
+
+        The 5 fields a `ModelIdentifierField` requires (key, hash, name, base,
+        type) are exactly what each model config exposes. Pass the result to
+        `build_sdxl_graph(..., resolve=...)`.
+        """
+        index: dict[str, dict] = {}
+        for cfg in self.list_models():
+            ident = {k: cfg[k] for k in ("key", "hash", "name", "base", "type")}
+            index[cfg["name"]] = ident
+            index[cfg["key"]] = ident  # allow resolving by key too
+
+        def resolve(name: str) -> dict:
+            if name not in index:
+                raise InvokeAIError(
+                    f"model {name!r} not found in install; "
+                    f"available: {sorted(set(index))[:20]}"
+                )
+            return index[name]
+
+        return resolve
 
     def image_url(self, image_name: str) -> str:
         return self._url(f"/api/v1/images/i/{image_name}/full")

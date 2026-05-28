@@ -1,27 +1,36 @@
-"""Best-effort builder for an InvokeAI SDXL generation graph.
+"""Builder for an InvokeAI SDXL generation graph.
 
-SCOPE / HONESTY NOTE
---------------------
-InvokeAI's node schema is version-specific and this builder has NOT been run
-against a live instance (no GPU in the scaffolding environment). It produces a
-*structurally* coherent text2img graph (model -> LoRA chain -> SDXL compel
-prompts -> noise -> denoise -> latents-to-image) for the parameters we're
-confident map cleanly. Validate node type names and field names against the
-target instance's `/openapi.json` before trusting runtime behaviour.
+Node type strings and field names below were validated by reading InvokeAI's
+invocation source (invokeai/app/invocations/*.py, version dated 2026-05-27, the
+same line a fresh fork tracks): `sdxl_model_loader`, `sdxl_lora_loader`,
+`sdxl_compel_prompt`, `noise`, `denoise_latents`, `controlnet`, `l2i`, `collect`.
 
-Features that need intricate, version-specific wiring are intentionally NOT
-faked here — the builder raises `NotImplementedError` rather than silently
-dropping them, so they get wired (and validated) on the GPU box:
+Model-bearing fields (main model, LoRA, ControlNet model) are typed
+`ModelIdentifierField` — `{key, hash, name, base, type}` — whose values come from
+the *running install's model DB*, not from a human label. The caller supplies a
+`resolve` callable (see `InvokeAIClient.model_resolver`) that maps a friendly
+name to that identifier; the builder embeds whatever it returns. This is the one
+real correction over the first draft, which used the obsolete
+`{model_name, base_model}` shape.
+
+Features needing intricate, version-specific wiring are intentionally NOT faked
+— the builder raises `NotImplementedError` rather than silently dropping them, so
+they get wired and validated on the GPU box:
   * regional guidance / control layers (`params.regions`)
   * sub-seed variation blending (`params.variation_seed`)
 """
 
 from __future__ import annotations
 
+from typing import Callable
+
 from volundr.models import GenerationParams
 
+# A resolver maps a friendly model name to an InvokeAI ModelIdentifierField dict.
+ModelResolver = Callable[[str], dict]
 
-def build_sdxl_graph(params: GenerationParams) -> dict:
+
+def build_sdxl_graph(params: GenerationParams, resolve: ModelResolver) -> dict:
     if params.regions:
         raise NotImplementedError(
             "regional guidance wiring is deferred to live InvokeAI validation; "
@@ -47,7 +56,7 @@ def build_sdxl_graph(params: GenerationParams) -> dict:
     nodes["model"] = {
         "id": "model",
         "type": "sdxl_model_loader",
-        "model": {"model_name": params.model, "base_model": "sdxl"},
+        "model": resolve(params.model),
     }
 
     # LoRA chain: thread unet/clip/clip2 through each loader in order.
@@ -57,7 +66,7 @@ def build_sdxl_graph(params: GenerationParams) -> dict:
         nodes[node_id] = {
             "id": node_id,
             "type": "sdxl_lora_loader",
-            "lora": {"model_name": lora.name, "base_model": "sdxl"},
+            "lora": resolve(lora.name),
             "weight": lora.weight,
         }
         add_edge(unet_src, "unet", node_id, "unet")
@@ -105,7 +114,7 @@ def build_sdxl_graph(params: GenerationParams) -> dict:
             nodes[cid] = {
                 "id": cid,
                 "type": "controlnet",
-                "control_model": {"model_name": cn.model, "base_model": "sdxl"},
+                "control_model": resolve(cn.model),
                 "control_weight": cn.weight,
                 "begin_step_percent": cn.begin_step_percent,
                 "end_step_percent": cn.end_step_percent,

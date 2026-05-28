@@ -26,7 +26,8 @@ src/volundr/
   models.py              # engine-agnostic types: GenerationParams, Feedback, results
   invoke/
     client.py            # graph-agnostic InvokeAI queue client (enqueue/poll/fetch image)
-    graph.py             # best-effort SDXL graph builder (text2img + LoRA + ControlNet)
+    graph.py             # SDXL graph builder (text2img + LoRA + ControlNet), schema-validated
+                         #   against InvokeAI invocation source (v2026-05-27)
   preference/            # ← the core value
     feedback.py          # FeedbackStore: record + JSON persistence of approve/deny/lean
     seeds.py             # variation_params: sub-seed variations near an approved image (step 4)
@@ -38,11 +39,17 @@ tests/                   # pure-logic + mocked-HTTP coverage (no GPU needed)
 **Built & tested here (GPU-independent):** the preference loop (feedback store + persistence,
 variation seeding, prompt-level lean, accumulated steering) and the InvokeAI REST client.
 
+**Schema-validated against InvokeAI source:** `graph.py`'s node type strings and field names
+were checked against the InvokeAI invocation source (the version a fresh fork tracks). The one
+correction over the first draft: model/LoRA/ControlNet fields are `ModelIdentifierField`s
+(`{key, hash, name, base, type}`) resolved from the running install's model DB at runtime via
+`InvokeAIClient.model_resolver()` — not human-readable name strings.
+
 **Deliberately deferred to the GPU box (not faked):** `graph.py` raises `NotImplementedError`
-for regional-guidance wiring and sub-seed variation blending, and its node/field names need
-validation against a live instance's `/openapi.json`. Concept Sliders (step 6) is training-based
-and unwritten. The InvokeAI **frontend fork** must be created under the user's GitHub account
-(this environment's GitHub access is scoped to `maxhightower/volundr` only).
+for regional-guidance wiring and sub-seed variation blending (both need the live install to
+validate). Concept Sliders (step 6) is training-based and unwritten. The InvokeAI **frontend
+fork** is created (under the user's GitHub account); its backend custom-node + canvas patches
+are pending. This environment's GitHub access is scoped to `maxhightower/volundr` only.
 
 Run tests: `pip install -e . && pytest`
 
