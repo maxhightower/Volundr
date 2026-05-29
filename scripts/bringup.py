@@ -26,10 +26,12 @@ from volundr.invoke import InvokeAIClient, InvokeAIError, build_sdxl_graph
 from volundr.models import ControlNetSpec, GenerationParams, LoraSpec
 
 # HF sources to install. Edit freely; all are open/personal-use friendly.
+# Single-file LoRAs need a direct file URL — InvokeAI's HF *repo* probe reports
+# "No downloadable files found" for a bare repo id like "nerijs/pixel-art-xl".
 DEFAULT_MODELS = [
     "stabilityai/stable-diffusion-xl-base-1.0",  # SDXL base
     "xinsir/controlnet-scribble-sdxl-1.0",        # scribble ControlNet (sketch)
-    "nerijs/pixel-art-xl",                         # pixel-art LoRA
+    "https://huggingface.co/nerijs/pixel-art-xl/resolve/main/pixel-art-xl.safetensors",  # pixel-art LoRA
     # IP-Adapter SDXL (identity, for the rotation/animation frontiers):
     "h94/IP-Adapter",
 ]
@@ -61,19 +63,30 @@ def install_models(client: InvokeAIClient, sources: list[str]) -> None:
         except InvokeAIError as e:
             log(f"install request for {src} returned: {e} (may already be installed)")
 
-    # Poll until no install job is still running.
-    deadline = time.monotonic() + 3600
+    # Poll until no install job is still active. Multi-GB SDXL + IP-Adapter on a
+    # slow link can take well over an hour, so the timeout is generous; installs
+    # run server-side, so this only governs how long we *wait*, not the download.
+    active_states = ("running", "running_install", "downloading", "waiting")
+    deadline = time.monotonic() + 4 * 3600
+    last_msg = None
     while time.monotonic() < deadline:
         try:
             jobs = client.model_install_jobs()
         except InvokeAIError:
             break
-        running = [j for j in jobs if j.get("status") in ("running", "downloading", "waiting")]
+        running = [j for j in jobs if j.get("status") in active_states]
         if not running:
             log("model installs settled")
             return
-        log(f"{len(running)} install job(s) in progress...")
-        time.sleep(5)
+        # Log only when the picture changes, to avoid hundreds of identical lines.
+        msg = f"{len(running)} install job(s) in progress: " + ", ".join(
+            f"{(j.get('total_bytes') and 100 * (j.get('bytes') or 0) // j['total_bytes']) or 0}%"
+            for j in running
+        )
+        if msg != last_msg:
+            log(msg)
+            last_msg = msg
+        time.sleep(10)
     log("WARNING: model installs did not settle within the timeout")
 
 

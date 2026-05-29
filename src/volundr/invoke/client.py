@@ -102,10 +102,21 @@ class InvokeAIClient:
         data = self._json("GET", "/api/v2/models/")
         return data.get("models", data) if isinstance(data, dict) else data
 
-    def install_model(self, source: str, inplace: bool = False) -> dict:
-        """Queue a model install from an HF repo id or URL (InvokeAI v2 model API)."""
+    def install_model(
+        self, source: str, inplace: bool = False, config: dict | None = None
+    ) -> dict:
+        """Queue a model install from an HF repo id or URL (InvokeAI v2 model API).
+
+        The endpoint takes `source` as a query param but also *requires* a JSON
+        body (`ModelRecordChanges` — auto-probe overrides like name/description);
+        all its fields are optional, so an empty object is valid and means
+        "probe everything". Omitting the body entirely returns HTTP 422.
+        """
         return self._json(
-            "POST", "/api/v2/models/install", params={"source": source, "inplace": inplace}
+            "POST",
+            "/api/v2/models/install",
+            params={"source": source, "inplace": inplace},
+            json=config or {},
         )
 
     def model_install_jobs(self) -> list[dict]:
